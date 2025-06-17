@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Chat Reader</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --accent: #ECF0F1;
+      --background: #0D1B2A;
+      --message-bg: #005c4b;
+      --system-bg: #1b1b1b;
+      --button-color: #4CAF50;
+      --button-hover: #368139;
+    }
+    
+    html, body {
+    overflow-x: hidden;
+    height: 100%;
+}
+
+    body {
+      font-family: "Cairo", sans-serif;
+      background-color: var(--background);
+      margin: 0;
+      padding: 0;
+      color: black;
+      font-size: 18px;
+    }
+
+    .background {
+      position: relative;
+      min-height: 100vh;
+      color: white;
+      z-index: 0;
+    }
+
+    .background::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('https://camo.githubusercontent.com/ebf18cd85f7aa9dc79fb74c58dc94febf3a6441d8d689cd5a400b2707e19ec0e/68747470733a2f2f7765622e77686174736170702e636f6d2f696d672f62672d636861742d74696c652d6461726b5f61346265353132653731393562366237333364393131306234303866303735642e706e67');
+      background-repeat: repeat;
+      background-size: 540px 981px; /* smaller image */
+      opacity: 0.15; /* semi-transparent */
+      z-index: -1;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 4rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      margin-top: 0;
+    }
+
+    .upload-box {
+      background-color: var(--button-color);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin: 1rem;
+      cursor: pointer;
+      transition: 0.3s ease;
+      display: inline-block;
+      font-family: "Cairo", sans-serif;
+      font-weight: bold;
+      font-size: 1.2rem;
+      
+    }
+    
+    .upload-box svg {
+      
+      width: 24px;
+      height: 24px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 0.5rem;
+    }
+    
+    .upload-box:hover {
+      background-color: var(--button-hover);
+    }
+    
+    #fileNameDisplay {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #ffffff;
+    }
+    
+    .chat-container {
+      background-color: #2c2c2c;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      min-height: 100vh;
+      z-index: 0;
+    }
+    
+    .chat-container::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('https://camo.githubusercontent.com/ebf18cd85f7aa9dc79fb74c58dc94febf3a6441d8d689cd5a400b2707e19ec0e/68747470733a2f2f7765622e77686174736170702e636f6d2f696d672f62672d636861742d74696c652d6461726b5f61346265353132653731393562366237333364393131306234303866303735642e706e67');
+      background-repeat: repeat;
+      background-size: 540px 981px; /* smaller image */
+      opacity: 0.1; /* semi-transparent */
+      z-index: -1;
+    }
+
+    .message, .system-message {
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border-radius: 0.75rem;
+      max-width: 90%;
+      box-shadow: 0 1px 3px rgba(247, 246, 246, 0.1);
+      word-wrap: break-word;
+    }
+
+    .message {
+      background: var(--message-bg);
+      align-self: flex-start;
+      padding: 15px;
+      border-radius: 25px;
+    }
+
+    .system-message {
+      background: var(--system-bg);
+      color: #acacac;
+      font-style: italic;
+      text-align: center;
+      align-self: center;
+    }
+
+    .sender {
+      font-weight: bold;
+      margin-bottom: 0.25rem;
+    }
+
+    .media {
+      max-width: 200px;
+      height: auto;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+      display: block;
+      cursor: pointer;
+    }
+
+    .media-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    .media-modal img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 1rem;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      background-color: var(--button-color);
+      color: white;
+      border: none;
+      border-radius: 1rem;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+      font-family: "Cairo", sans-serif;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    .WhatsAppLogo {
+      width: 125px;
+      height: auto;
+      margin-top: 10rem;
+    }
+
+    @media (max-width: 600px) {
+      .WhatsAppLogo {
+        width: 120px;
+        margin-top: 6rem;
+        margin-bottom: 1rem;
+      }
+      h1 {
+        font-size: 2.5rem;
+      }
+      .upload-box {
+        width: 90%;
+        font-size: 1rem;
+      }
+      .message, .system-message {
+        font-size: 14px;
+      }
+      body {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background">  
+    <div class="container" id="upload-section">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp Logo" class= "WhatsAppLogo">
+      <h1>View Your WhatsApp Chat Now!</h1>
+      <label class="upload-box">
+        <input type="file" accept=".zip" id="zipInput" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M364.2 83.8c-24.4-24.4-64-24.4-88.4 0l-184 184c-42.1 42.1-42.1 110.3 0 152.4s110.3 42.1 152.4 0l152-152c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-152 152c-64 64-167.6 64-231.6 0s-64-167.6 0-231.6l184-184c46.3-46.3 121.3-46.3 167.6 0s46.3 121.3 0 167.6l-176 176c-28.6 28.6-75 28.6-103.6 0s-28.6-75 0-103.6l144-144c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-144 144c-6.7 6.7-6.7 17.7 0 24.4s17.7 6.7 24.4 0l176-176c24.4-24.4 24.4-64 0-88.4z"/></svg>
+        <span>Upload your ZIP file</span>
+      </label>
+      <div id="fileNameDisplay"></div>
+      <button onclick="handleSubmit()">Submit</button>
+    </div>
+
+    <div class="chat-container" id="chat-section" style="display:none;"></div>
+
+    <div id="mediaModal" class="media-modal" style="display:none;" onclick="closeModal()">
+      <img id="modalImage" src="" alt="Media">
+    </div>
+  </div>
+
+  <script>
+    let zipFile;
+    const zipInput = document.getElementById('zipInput');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+    zipInput.addEventListener('change', (e) => {
+      zipFile = e.target.files[0];
+      fileNameDisplay.textContent = `Selected File: ${zipFile.name}`;
+    });
+
+    function showModal(src) {
+      const modal = document.getElementById('mediaModal');
+      const img = document.getElementById('modalImage');
+      img.src = src;
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('mediaModal').style.display = 'none';
+    }
+
+    function getColorForName(name) {
+      const colors = [
+    "#1F2937",
+    "#3B82F6",
+    "#10B981",
+    "#6366F1",
+    "#EC4899",
+    "#F59E0B",
+    "#EF4444",
+    "#0EA5E9",
+    "#14B8A6",
+    "#F97316",
+    "#64748B"
+];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    async function handleSubmit() {
+      if (!zipFile) return;
+
+      const zip = await JSZip.loadAsync(zipFile);
+      const chatSection = document.getElementById('chat-section');
+      const uploadSection = document.getElementById('upload-section');
+      const mediaFiles = {};
+      const messages = [];
+
+      for (const filename in zip.files) {
+        if (filename.endsWith('.txt')) {
+          const content = await zip.files[filename].async('string');
+          content.split('\n').forEach((line, idx) => {
+            const msgMatch = line.match(/^([0-9]{1,2}\/\d{1,2}\/\d{2,4}),?\s+(\d{1,2}:\d{2})?\s?-\s(.+?):\s(.*)$/);
+            if (msgMatch) {
+              const [, , , sender, text] = msgMatch;
+              messages.push({ id: idx, sender, text });
+            } else if (line.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+              messages.push({ id: idx, sender: null, text: line });
+            } else if (messages.length > 0) {
+              messages[messages.length - 1].text += '\n' + line;
+            }
+          });
+        } else if (filename.match(/\.(jpg|webp)$/i)) {
+          const blob = await zip.files[filename].async('blob');
+          const shortName = filename.split('/').pop();
+          mediaFiles[shortName] = URL.createObjectURL(blob);
+        }
+      }
+
+      uploadSection.style.display = 'none';
+      chatSection.style.display = 'flex';
+      chatSection.innerHTML = `<h2 style="text-align:center; color: var(--primary);">${zipFile.name}</h2>`;
+
+      messages.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = msg.sender ? 'message' : 'system-message';
+
+        if (msg.sender) {
+          const senderDiv = document.createElement('div');
+          senderDiv.className = 'sender';
+          senderDiv.textContent = msg.sender;
+          senderDiv.style.color = getColorForName(msg.sender);
+          div.appendChild(senderDiv);
+
+          const mediaNames = msg.text.match(/\b(IMG|STK)-\d{8}-WA\d{4}\.\w+\b/gi);
+          if (mediaNames) {
+            mediaNames.forEach(name => {
+              if (mediaFiles[name]) {
+                const img = document.createElement('img');
+                img.src = mediaFiles[name];
+                img.className = 'media';
+                img.onclick = () => showModal(mediaFiles[name]);
+                div.appendChild(img);
+              }
+              msg.text = msg.text.replace(name, '');
+            });
+          }
+        }
+
+        const cleanedText = msg.text
+          .replace(/\b(IMG|STK)-\d{8}-WA\d{4}\.\w+\b/gi, '')
+          .replace(/\(file attached\)/gi, '')
+          .trim();
+
+        if (cleanedText) {
+          const textNode = document.createTextNode(cleanedText);
+          div.appendChild(textNode);
+        }
+
+        chatSection.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
